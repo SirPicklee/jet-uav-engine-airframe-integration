@@ -29,7 +29,7 @@ UAV_ENGINE = TurbofanDesign(
 MAX_DRY = Rating("Max dry", T4_max=1650.0, N_L_max=1.05, N_H_max=1.05,
                  n_fan_max=1.08, T3_max=800.0)
 
-T4_IDLE = 1100.0   # K, lowest T4 in the deck
+T4_IDLE = 850.0    # K, lowest T4 in the deck (~10 % of max thrust at SLS)
 
 
 def make_engine():

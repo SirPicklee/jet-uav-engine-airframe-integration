@@ -20,6 +20,24 @@ from jet_uav_sim.engine import T4_IDLE, make_engine, max_point, part_power_point
 COLUMNS = ["altitude_m", "mach", "throttle", "T4_K", "thrust_N", "fuel_flow_kg_s",
            "N_L", "N_H", "egt_K", "limiter"]
 
+def march_to(eng, altitude, mach, T4_from, T4_to, x, step=25.0):
+    """Solve at T4_to starting from a converged point at T4_from.
+
+    Tries one jump first. If the solver fails, walks from T4_from to T4_to
+    in steps of at most `step` kelvin. Returns (MapPoint or None, x).
+    """
+    try:
+        return part_power_point(eng, altitude, mach, T4_to, guess=x)
+    except RuntimeError:
+        pass
+    n = int(np.ceil(abs(T4_to - T4_from) / step))
+    x_try = x
+    try:
+        for T4 in np.linspace(T4_from, T4_to, n + 1)[1:]:
+            p, x_try = part_power_point(eng, altitude, mach, T4, guess=x_try)
+    except RuntimeError:
+        return None, x
+    return p, x_try
 
 def generate(altitudes, machs, throttles, verbose=True):
     """Run the cycle over the grid. Returns a DataFrame with one row per point."""
@@ -30,17 +48,16 @@ def generate(altitudes, machs, throttles, verbose=True):
         for mach in machs:
             p_max, limiter, x_max = max_point(eng, alt, mach, guess=x_max)
             T4_rated = p_max.result.design.T4
-            x = x_max
+            x, T4_prev = x_max, T4_rated
             # march down from max power: each point starts from the previous one
             for thr in sorted(throttles, reverse=True):
                 if thr >= 1.0:
                     p = p_max
                 else:
                     T4 = T4_IDLE + thr * (T4_rated - T4_IDLE)
-                    try:
-                        p, x = part_power_point(eng, alt, mach, T4, guess=x)
-                    except RuntimeError:
-                        p = None
+                    p, x = march_to(eng, alt, mach, T4_prev, T4, x)
+                    if p is not None:
+                        T4_prev = T4
                 if p is None:
                     rows.append([alt, mach, thr] + [np.nan] * 6 + ["no_conv"])
                     continue
