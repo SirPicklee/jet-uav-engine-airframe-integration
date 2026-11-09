@@ -27,3 +27,14 @@ def test_no_thrust_without_fuel(model):
     d = model.derivatives(s, np.radians(t.de_deg), t.throttle)
     assert d[6] == 0.0      # no fuel burn
     assert d[0] < 0.0       # decelerating
+
+def test_longitudinal_modes(model):
+    from jet_uav_sim.linearize import linearize, modes
+    t = trim_level(6000.0, 0.6, model.mass(1800.0), aero=model.aero, deck=model.deck)
+    A, _ = linearize(model, state_from_trim(t, 1800.0), np.radians(t.de_deg), t.throttle)
+    osc, real = modes(A)
+    phugoid, short_period = osc
+    assert 0.04 < phugoid["zeta"] < 0.2                  # MIL-F-8785C level 1
+    assert 0.30 < short_period["zeta"] < 2.0             # level 1, category B
+    assert short_period["wn"] > 10 * phugoid["wn"]       # modes well separated
+    assert any(abs(r["time_constant"] - model.tau_engine) < 1e-3 for r in real)
