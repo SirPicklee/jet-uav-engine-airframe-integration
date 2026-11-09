@@ -1,0 +1,3 @@
+[submodule "external/turbofan-cycle"]
+	path = external/turbofan-cycle
+	url = https://github.com/SirPicklee/turbofan-cycle.git
