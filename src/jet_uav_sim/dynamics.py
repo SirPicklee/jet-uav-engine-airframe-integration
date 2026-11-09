@@ -32,7 +32,7 @@ STATE_NAMES = ["u", "w", "q", "theta", "x", "h", "fuel", "throttle"]
 class LongitudinalModel:
     aero: AeroModel = field(default_factory=AeroModel)
     deck: ThrustDeck = field(default_factory=lambda: ThrustDeck.from_csv(DECK_PATH))
-    tau_engine: float = 1.0      # s, first-order spool lag (to be fitted to turbofan-cycle)
+    tau_engine: float = 1.02     # s, first-order lag fitted to turbofan-cycle (scripts/fit_engine_lag.py)
 
     def mass(self, fuel):
         m = self.aero.airframe.mass
