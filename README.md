@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/SirPicklee/jet-uav-engine-airframe-integration/actions/workflows/tests.yml/badge.svg)](https://github.com/SirPicklee/jet-uav-engine-airframe-integration/actions/workflows/tests.yml)
 
-Mission performance of a notional ~6 t jet UAV, built by coupling a **map-based two-spool turbofan model** ([turbofan-cycle](https://github.com/SirPicklee/turbofan-cycle)) with **conceptual aerodynamics, longitudinal flight dynamics, an autopilot and quasi-steady mission analysis**.
+Mission performance of a notional ~6 t jet UAV, built by coupling a **map-based two-spool turbofan model** ([turbofan-cycle](https://github.com/SirPicklee/turbofan-cycle)) with **conceptual aerodynamics, 3-DoF and 6-DoF flight dynamics, an autopilot and quasi-steady mission analysis**.
 
 **Headline result:** a ~1.5 % loss in component efficiencies (mid-life engine wear) cuts the mission radius by **38 km** and, at long range, the time on station by **up to 15 %**: a number you can only get by modelling the engine and the airframe together.
 
@@ -19,7 +19,7 @@ flowchart LR
     D[Notional airframe<br/>geometry, mass, inertia] --> E[Aero model<br/>DATCOM, Korn, Raymer]
     B --> F[Coupled trim]
     E --> F
-    F --> G[3-DoF dynamics<br/>+ engine lag + fuel burn]
+    F --> G[3-DoF and 6-DoF dynamics<br/>+ engine lag + fuel burn]
     C --> G
     G --> H[Linearization<br/>modal analysis]
     G --> I[Autopilot<br/>autothrottle + altitude hold]
@@ -68,6 +68,21 @@ Linearized about 6 km / Mach 0.6:
 |---|---|
 | ![](docs/figures/sim_elevator_doublet.png) | ![](docs/figures/engine_lag_fit.png) |
 
+### Lateral-directional (6-DoF)
+Full 6-DoF equations (Euler angles, north-east-down position) with representative fighter-class lateral derivatives. With the lateral states at zero the 6-DoF model reproduces the 3-DoF model to 1e-12, away from trim as well. Linearized at 6 km / Mach 0.6 and checked against the classical approximations:
+
+| Mode | 6-DoF linear | Approximation | Nonlinear simulation | MIL-F-8785C level 1 |
+|---|---|---|---|---|
+| Dutch roll | ωn = 3.13 rad/s, ζ = 0.104 | 2.97 rad/s, 0.120 (sideslip + yaw) | period 2.02 s, ζ = 0.104 | ζ ≥ 0.08, ζωn ≥ 0.15 ✓ |
+| Roll | τ = 0.327 s | 0.333 s (pure roll) | — | τ ≤ 1.4 s ✓ |
+| Spiral | τ = 68 s, stable | 58 s (Cook, with g/V) | 69 s from bank decay | stable ✓ |
+
+The spiral approximation must keep gravity: the mode is the slow bank-sideslip-yaw loop that gravity closes. Hands off after a 22° bank, the aircraft loses 193 m and turns 66° before the spiral mode levels the wings, which is why a heading hold is needed.
+
+| Rudder doublet: Dutch roll | Aileron pulse: spiral mode |
+|---|---|
+| ![](docs/figures/sim_rudder_doublet.png) | ![](docs/figures/sim_aileron_pulse.png) |
+
 ### Autopilot
 PI autothrottle with anti-windup; altitude hold with a rate-limited pitch-attitude inner loop and integral action. A 20 m/s speed step disturbs altitude by 6 m; a 500 m altitude step overshoots by 4.4 % with elevator activity under 1°. Digital implementation at 50 Hz, fixed-step RK4.
 
@@ -112,12 +127,16 @@ A representative mid-life wear pattern (compressor fouling, opened turbine tip c
 
 | Max radius, two methods | 1258 km (out-and-back, fuel to reserve) | 1260 km (loiter time extrapolated to zero) | −0.2 % |
 
+| 6-DoF reduces to 3-DoF | all derivatives | 3-DoF model, off-trim state | < 1e-12 |
+| Dutch roll, nonlinear sim | 2.02 s, ζ = 0.104 | linear model eigenvalue | exact to 3 digits |
+| Spiral, nonlinear sim | 69 s | linear model, 68 s | +1.5 % |
+
 The Breguet difference is expected: Breguet freezes L/D and TSFC, the simulation re-trims every minute as the aircraft gets lighter.
 
 
 ## Limitations and next steps
 
-- **Longitudinal only.** Lateral-directional aerodynamics and full 6-DoF are the next step.
+- **Lateral derivatives are representative textbook values,** not estimated from a vertical-tail geometry; product of inertia Ixz neglected; no lateral autopilot (heading hold) yet.
 - **Engine lag is first-order.** The transient actually has a fast HP-spool rise and a slow LP-spool tail (95 % thrust at 1.35 s vs. 3τ = 3.1 s); a two-time-constant model would capture it.
 - **No FADEC T4 limiter in the transient:** T4 overshoots to 1760 K during acceleration (rating: 1650 K).
 - **Missions cruise at 10 km,** well below the ~14.7 km cruise ceiling; cruising (and step-climbing) at the ceiling would add roughly 20–25 % range. The worn-engine deck still ends at 12 km, so the deterioration study is kept at 10 km for a like-for-like comparison.

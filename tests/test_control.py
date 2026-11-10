@@ -37,3 +37,19 @@ def test_speed_held_during_climb(altitude_step):
 def test_elevator_stays_gentle(altitude_step):
     r, _, _ = altitude_step
     assert np.abs(np.degrees(r.de)).max() < 5.0
+
+
+
+def test_heading_hold_coordinated_turn():
+    from jet_uav_sim.sim import simulate_autopilot_6dof
+    alt, mach = 6000.0, 0.6
+    V0 = mach * float(isa(alt)[3])
+    r = simulate_autopilot_6dof(alt, mach, 1800.0,
+                                V_cmd_fn=lambda t: V0,
+                                h_cmd_fn=lambda t: alt,
+                                psi_cmd_fn=lambda t: np.radians(30.0) if t >= 2.0 else 0.0,
+                                t_end=60.0)
+    assert abs(np.degrees(r["psi"][-1]) - 30.0) < 1.0           # reaches the heading
+    assert np.degrees(r["psi"]).max() < 31.0                    # no real overshoot
+    assert np.degrees(np.abs(r.beta)).max() < 1.5               # coordinated
+    assert np.abs(r["h"] - alt).max() < 10.0                    # altitude held

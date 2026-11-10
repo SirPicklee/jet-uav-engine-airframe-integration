@@ -79,3 +79,40 @@ class AltitudeHold:
 
         de = self.de_trim + self.k_theta * (theta - theta_cmd) + self.k_q * q
         return float(np.clip(de, -self.de_limit, self.de_limit)), float(theta_cmd)
+
+    
+
+def wrap_angle(a):
+    """Wrap an angle to [-pi, pi)."""
+    return (a + np.pi) % (2 * np.pi) - np.pi
+
+
+@dataclass
+class HeadingHold:
+    """Heading hold through bank, with a yaw damper and turn coordination.
+
+    Outer loop : heading error -> bank command (limited)
+    Inner loop : bank error, roll rate -> aileron
+    Rudder     : yaw rate minus the coordinated-turn yaw rate (yaw damper),
+                 plus sideslip feedback
+
+    Signs: positive aileron rolls right; positive rudder yaws the nose left.
+    """
+    k_psi: float = 2.0          # rad of bank per rad of heading error
+    k_phi: float = 0.2          # rad of aileron per rad of bank error
+    k_p: float = 0.03           # rad of aileron per rad/s of roll rate
+    k_r: float = 0.4            # rad of rudder per rad/s of yaw rate error
+    k_beta: float = 0.3         # rad of rudder per rad of sideslip
+    phi_limit: float = np.radians(30.0)
+    da_limit: float = np.radians(20.0)
+    dr_limit: float = np.radians(25.0)
+
+    def command(self, psi_cmd, psi, phi, theta, p, r, beta, V):
+        phi_cmd = np.clip(self.k_psi * wrap_angle(psi_cmd - psi),
+                          -self.phi_limit, self.phi_limit)
+        da = self.k_phi * (phi_cmd - phi) - self.k_p * p
+        r_coord = 9.80665 / V * np.sin(phi) * np.cos(theta)
+        dr = self.k_r * (r - r_coord) - self.k_beta * beta
+        return (float(np.clip(da, -self.da_limit, self.da_limit)),
+                float(np.clip(dr, -self.dr_limit, self.dr_limit)),
+                float(phi_cmd))
