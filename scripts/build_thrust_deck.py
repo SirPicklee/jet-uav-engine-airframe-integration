@@ -38,7 +38,8 @@ if args.quick:
     machs = np.array([0.0, 0.45, 0.9])
     throttles = np.array([0.0, 0.5, 1.0])
 else:
-    altitudes = np.arange(0.0, 12001.0, 2000.0)
+    altitudes = np.array([0.0, 2000.0, 4000.0, 6000.0, 8000.0, 10000.0,
+                          12000.0, 13500.0, 15000.0])
     machs = np.round(np.arange(0.0, 0.91, 0.15), 2)
     throttles = np.round(np.linspace(0.0, 1.0, 6), 2)
 

@@ -25,7 +25,7 @@ RESULTS = ROOT / "results"
 RESULTS.mkdir(exist_ok=True)
 
 MASS = 6000.0
-altitudes = np.arange(0.0, 12001.0, 1000.0)
+altitudes = np.arange(0.0, 15001.0, 1000.0)
 machs = np.round(np.arange(0.20, 0.901, 0.05), 2)
 
 aero = AeroModel()

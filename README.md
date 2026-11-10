@@ -35,9 +35,22 @@ A small low-bypass turbofan (BPR 0.9, OPR 21, 28.7 kN sea-level static, dry) is 
 ![Thrust lapse](docs/figures/thrust_deck_max_dry.png)
 
 ### Airframe and trim
-Conceptual-design methods give CLα = 3.3 /rad, CD0 = 0.014 and (L/D)max = 12.8; the Korn equation puts drag divergence at Mach 0.94 (t/c 5 %, 33° quarter-chord sweep). Trimming engine and airframe together over the envelope shows the best specific range at **12 km, Mach 0.75 (1.90 km/kg)**: above Mach ~0.83, wave drag outweighs the time saved.
+Conceptual-design methods give CLα = 3.3 /rad, CD0 = 0.014 and (L/D)max = 12.8; the Korn equation puts drag divergence at Mach 0.94 (t/c 5 %, 33° quarter-chord sweep). Trimming engine and airframe together over the envelope shows specific range rising with altitude until thrust runs out: the best point, **15 km, Mach 0.85 (2.02 km/kg)**, sits at the MTOW service ceiling, as expected for a jet. Higher up, the same CL needs more speed, so the optimum Mach moves up with altitude until wave drag sets in.
 
 | Drag polars | Specific range over the envelope |
+
+### Ceilings
+Rate of climb at max dry thrust, RC = (T − D)·V / W, maximized over Mach at each altitude. Above the top of the deck (15 km) thrust is scaled with ambient pressure: in the isothermal layer the engine runs at a fixed corrected point, so F/δ is constant (checked on the deck: 12 → 15 km thrust ratio 0.62 vs. pressure ratio 0.623).
+
+| Mass | Cruise ceiling (1.5 m/s) | Service ceiling (0.5 m/s) | Absolute ceiling |
+|---|---|---|---|
+| MTOW, 6000 kg | 14 725 m | 15 035 m | 15 207 m |
+| Half fuel, 5100 kg | 15 723 m | 16 066 m | 16 237 m |
+
+Burning 900 kg of fuel raises the ceiling by 1 km, which is why jets step-climb.
+
+![Ceilings](docs/figures/ceiling.png)
+
 |---|---|
 | ![](docs/figures/aero_drag_polar.png) | ![](docs/figures/trim_map_specific_range.png) |
 
@@ -96,7 +109,7 @@ The Breguet difference is expected: Breguet freezes L/D and TSFC, the simulation
 - **Longitudinal only.** Lateral-directional aerodynamics and full 6-DoF are the next step.
 - **Engine lag is first-order.** The transient actually has a fast HP-spool rise and a slow LP-spool tail (95 % thrust at 1.35 s vs. 3τ = 3.1 s); a two-time-constant model would capture it.
 - **No FADEC T4 limiter in the transient:** T4 overshoots to 1760 K during acceleration (rating: 1650 K).
-- **Thrust deck ends at 12 km,** where the specific-range optimum lies; extending it would give the true optimum and the service ceiling.
+- **Missions cruise at 10 km,** well below the ~14.7 km cruise ceiling; cruising (and step-climbing) at the ceiling would add roughly 20–25 % range. The worn-engine deck still ends at 12 km, so the deterioration study is kept at 10 km for a like-for-like comparison.
 - **Conceptual aerodynamics:** the swept-wing Oswald factor (0.88) is optimistic; real values are 0.75–0.85.
 - **Fixed autopilot gains;** gain scheduling over the envelope is needed for a production design.
 - **Notional aircraft and illustrative wear pattern,** not data of any real aircraft or engine fleet.
