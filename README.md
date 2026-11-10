@@ -1,0 +1,165 @@
+# Jet UAV Engine–Airframe Integration
+
+[![tests](https://github.com/SirPicklee/jet-uav-engine-airframe-integration/actions/workflows/tests.yml/badge.svg)](https://github.com/SirPicklee/jet-uav-engine-airframe-integration/actions/workflows/tests.yml)
+
+Mission performance of a notional ~6 t jet UAV, built by coupling a **map-based two-spool turbofan model** ([turbofan-cycle](https://github.com/SirPicklee/turbofan-cycle)) with **conceptual aerodynamics, longitudinal flight dynamics, an autopilot and quasi-steady mission analysis**.
+
+**Headline result:** a ~1.5 % loss in component efficiencies (mid-life engine wear) cuts the mission radius by **38 km** and, at long range, the time on station by **up to 15 %**: a number you can only get by modelling the engine and the airframe together.
+
+![Engine deterioration impact](docs/figures/deterioration_mission_impact.png)
+
+---
+
+## How it fits together
+
+```mermaid
+flowchart LR
+    A[turbofan-cycle<br/>map-based off-design] -->|294-point sweep| B[Thrust deck<br/>alt × Mach × throttle]
+    A -->|throttle-slam transient| C[Engine lag τ]
+    D[Notional airframe<br/>geometry, mass, inertia] --> E[Aero model<br/>DATCOM, Korn, Raymer]
+    B --> F[Coupled trim]
+    E --> F
+    F --> G[3-DoF dynamics<br/>+ engine lag + fuel burn]
+    C --> G
+    G --> H[Linearization<br/>modal analysis]
+    G --> I[Autopilot<br/>autothrottle + altitude hold]
+    F --> J[Mission analysis<br/>climb, cruise, loiter, descent]
+    J --> K[Radius vs. time on station<br/>new vs. worn engine]
+```
+
+## Results
+
+### Engine: thrust deck
+A small low-bypass turbofan (BPR 0.9, OPR 21, 28.7 kN sea-level static, dry) is designed with turbofan-cycle and swept over 0–12 km, Mach 0–0.9 and idle to max dry. The max-dry rating is limited by T4 at low altitude and by corrected fan speed at altitude. At altitude, thrust rises again with Mach as ram pressure lets the fan swallow more air at its speed limit.
+
+![Thrust lapse](docs/figures/thrust_deck_max_dry.png)
+
+### Airframe and trim
+Conceptual-design methods give CLα = 3.3 /rad, CD0 = 0.014 and (L/D)max = 12.8; the Korn equation puts drag divergence at Mach 0.94 (t/c 5 %, 33° quarter-chord sweep). Trimming engine and airframe together over the envelope shows the best specific range at **12 km, Mach 0.75 (1.90 km/kg)**: above Mach ~0.83, wave drag outweighs the time saved.
+
+| Drag polars | Specific range over the envelope |
+|---|---|
+| ![](docs/figures/aero_drag_polar.png) | ![](docs/figures/trim_map_specific_range.png) |
+
+### Dynamics
+Linearized about 6 km / Mach 0.6:
+
+| Mode | Result | Flying qualities (MIL-F-8785C, cat. B) |
+|---|---|---|
+| Short period | ωn = 3.66 rad/s, ζ = 0.44 | Level 1 (0.30 ≤ ζ ≤ 2.0) |
+| Phugoid | T = 86.8 s, ζ = 0.061 | Level 1 (ζ ≥ 0.04) |
+| Engine | τ = 1.02 s | fitted to the turbofan-cycle transient |
+| Height mode | τ = 750 s | stable (density gradient) |
+
+| Elevator doublet | Engine lag fitted to the transient model |
+|---|---|
+| ![](docs/figures/sim_elevator_doublet.png) | ![](docs/figures/engine_lag_fit.png) |
+
+### Autopilot
+PI autothrottle with anti-windup; altitude hold with a rate-limited pitch-attitude inner loop and integral action. A 20 m/s speed step disturbs altitude by 6 m; a 500 m altitude step overshoots by 4.4 % with elevator activity under 1°. Digital implementation at 50 Hz, fixed-step RK4.
+
+![Autopilot](docs/figures/sim_autopilot.png)
+
+### Mission
+Quasi-steady segments: climb by specific excess power, cruise and loiter by re-trimming every step, idle descent.
+
+- **Loiter optimum:** at every altitude the minimum-fuel-flow point sits at L/D ≈ 12.7, i.e. (L/D)max, as theory predicts for a jet. The best altitude (6–8 km, 283 kg/h) comes from the engine: TSFC is poor low down (hot air) and high up (low throttle). Loitering at cruise altitude costs only 1.4 % more and avoids a descent and re-climb.
+- **Radius vs. time on station:** every extra 100 km of radius costs 23 min on station; maximum radius 1260 km with a 10 % fuel reserve.
+
+| Loiter fuel flow | Example mission (400 km, 2 h on station) |
+|---|---|
+| ![](docs/figures/loiter_fuel_flow.png) | ![](docs/figures/mission_profile.png) |
+
+### Engine deterioration
+A representative mid-life wear pattern (compressor fouling, opened turbine tip clearances: 1–2 % efficiency losses) is applied through turbofan-cycle's health parameters and a second thrust deck is generated.
+
+- Where the rating is **T4-limited** (low altitude), the worn engine loses 8 % thrust.
+- Where it is **fan-speed-limited** (altitude), it keeps its thrust by running hotter, which is why engines are rated on N1.
+- In the mission, the loss comes from **TSFC** (+~3.5 %), not thrust: **−38 km radius, ~10 min less on station at every radius**, up to −15 % of station time at 1000 km.
+
+## Validation
+
+| Check | Model | Reference | Difference |
+|---|---|---|---|
+| ISA atmosphere at 11 km | 22 632 Pa, 0.3639 kg/m³ | ISA tables | exact |
+| Trim is an equilibrium | du, dw, dq < 1e-10 | 0 | — |
+| Phugoid period (linear model) | 86.8 s | Lanchester, π√2·V/g = 86.0 s | +0.9 % |
+| Outbound cruise fuel | 194.3 kg | Breguet range equation, 192.8 kg | +0.8 % |
+| Loiter-optimum L/D | 12.70 | (L/D)max = 12.81 | −0.9 % |
+| Loiter lost per 100 km of radius | 0.385 h | hand calc: 200 km ÷ 1.85 km/kg ÷ 285 kg/h = 0.38 h | +1 % |
+| Engine mode in the linear model | τ = 1.02 s | engine lag in the nonlinear model | exact |
+
+The Breguet difference is expected: Breguet freezes L/D and TSFC, the simulation re-trims every minute as the aircraft gets lighter.
+
+## Limitations and next steps
+
+- **Longitudinal only.** Lateral-directional aerodynamics and full 6-DoF are the next step.
+- **Engine lag is first-order.** The transient actually has a fast HP-spool rise and a slow LP-spool tail (95 % thrust at 1.35 s vs. 3τ = 3.1 s); a two-time-constant model would capture it.
+- **No FADEC T4 limiter in the transient:** T4 overshoots to 1760 K during acceleration (rating: 1650 K).
+- **Thrust deck ends at 12 km,** where the specific-range optimum lies; extending it would give the true optimum and the service ceiling.
+- **Conceptual aerodynamics:** the swept-wing Oswald factor (0.88) is optimistic; real values are 0.75–0.85.
+- **Fixed autopilot gains;** gain scheduling over the envelope is needed for a production design.
+- **Notional aircraft and illustrative wear pattern,** not data of any real aircraft or engine fleet.
+
+## Running it
+
+```bash
+git clone --recurse-submodules https://github.com/SirPicklee/jet-uav-engine-airframe-integration.git
+cd jet-uav-engine-airframe-integration
+python -m venv .venv
+# Windows: .venv\Scripts\activate     Linux/macOS: source .venv/bin/activate
+pip install -e ".[dev]"
+pytest                                   # 29 tests
+```
+
+Thrust decks are committed in `data/`; regenerating them takes ~15 min each:
+
+```bash
+python scripts/build_thrust_deck.py          # new engine
+python scripts/build_thrust_deck.py --worn   # deteriorated engine
+```
+
+| Script | What it does |
+|---|---|
+| `plot_aero.py` | drag polars, transonic drag rise |
+| `plot_trim_map.py` | specific range and throttle over the envelope |
+| `sim_elevator_doublet.py` | short period and phugoid in the time domain |
+| `modal_analysis.py` | linearization and eigenvalues |
+| `fit_engine_lag.py` | throttle slam with turbofan-cycle, first-order fit |
+| `sim_autopilot.py` | speed and altitude steps with the autopilot |
+| `run_mission.py` | example mission with the Breguet check |
+| `find_loiter_optimum.py` | minimum fuel flow over the envelope |
+| `radius_endurance.py [--worn]` | radius vs. time on station |
+| `compare_deterioration.py` | new vs. worn engine |
+
+## Project structure
+
+```
+src/jet_uav_sim/
+  engine.py        UAV turbofan definition, rating, wear case
+  thrust_deck.py   deck generation and interpolation
+  airframe.py      wing geometry, mass, inertia
+  aero.py          longitudinal aerodynamics
+  atmosphere.py    ISA
+  trim.py          coupled engine–airframe level-flight trim
+  dynamics.py      3-DoF equations of motion with engine lag and fuel burn
+  linearize.py     numerical Jacobians, modes
+  control.py       autothrottle, altitude hold
+  sim.py           closed-loop RK4 simulation
+  mission.py       quasi-steady mission segments
+external/turbofan-cycle   engine model (git submodule)
+```
+
+## References
+
+- Raymer, *Aircraft Design: A Conceptual Approach*, 6th ed.: skin-friction drag, Oswald factor
+- USAF DATCOM: lift-curve slope
+- Mason, *Transonic Aerodynamics of Airfoils and Wings*: Korn equation, drag rise
+- Roskam, *Airplane Design Part V*: radii of gyration
+- Etkin & Reid, *Dynamics of Flight*; Stevens & Lewis, *Aircraft Control and Simulation*: flight dynamics
+- MIL-F-8785C, *Flying Qualities of Piloted Airplanes*
+- Walsh & Fletcher, *Gas Turbine Performance*: engine ratings, deterioration
+
+## License
+
+MIT
