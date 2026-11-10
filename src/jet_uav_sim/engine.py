@@ -13,7 +13,9 @@ sys.path.insert(0, str(ROOT / "external" / "turbofan-cycle"))
 
 from turbofan.cycle import TurbofanDesign, run_design_point  # noqa: E402
 from turbofan.limits import Rating, max_rating  # noqa: E402
-from turbofan.offdesign_maps import build_engine, off_design_maps  # noqa: E402
+from turbofan.offdesign_maps import (  # noqa: E402
+    Health, build_engine, off_design_maps, with_health,
+)
 
 # Design point: sea level static, ISA
 UAV_ENGINE = TurbofanDesign(
@@ -32,10 +34,20 @@ MAX_DRY = Rating("Max dry", T4_max=1650.0, N_L_max=1.05, N_H_max=1.05,
 T4_IDLE = 850.0    # K, lowest T4 in the deck (~10 % of max thrust at SLS)
 
 
-def make_engine():
-    """Design-point result and the map-based off-design engine."""
+
+# Representative mid-life wear (illustrative, not fleet data): compressors foul,
+# turbine tip clearances open. Signs follow turbofan-cycle's deterioration module.
+WORN = Health(fan_eff=-0.01, hpc_eff=-0.02, hpc_flow=-0.01,
+              hpt_eff=-0.015, hpt_flow=+0.01, lpt_eff=-0.01)
+
+
+def make_engine(health=None):
+    """Design-point result and the map-based off-design engine (optionally worn)."""
     design = run_design_point(UAV_ENGINE)
-    return design, build_engine(design)
+    eng = build_engine(design)
+    if health is not None:
+        eng = with_health(eng, health)
+    return design, eng
 
 
 def max_point(eng, altitude, mach, guess=None):

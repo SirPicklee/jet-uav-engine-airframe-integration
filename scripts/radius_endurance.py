@@ -11,6 +11,7 @@ found by iteration (converges in 2-3 passes).
 Output: results/radius_endurance.png, data/radius_endurance.csv
 """
 
+import argparse
 import copy
 from pathlib import Path
 
@@ -22,10 +23,17 @@ import pandas as pd
 
 from jet_uav_sim.airframe import UAV
 from jet_uav_sim.mission import Mission
+from jet_uav_sim.thrust_deck import ThrustDeck
+from jet_uav_sim.trim import DECK_PATH
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
-RESULTS.mkdir(exist_ok=True)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--worn", action="store_true", help="use the deteriorated engine deck")
+args = parser.parse_args()
+SUFFIX = "_worn" if args.worn else ""
+DECK = ThrustDeck.from_csv(DECK_PATH.with_name(f"thrust_deck{SUFFIX}.csv"))
 
 FUEL = UAV.mass.fuel_max
 RESERVE = 0.10 * FUEL
@@ -36,7 +44,7 @@ DT_LOITER = 300.0            # s, coarse step is enough for the loiter
 
 
 def outbound(radius):
-    m = Mission(mass0=UAV.mass.mtow, fuel0=FUEL)
+    m = Mission(mass0=UAV.mass.mtow, fuel0=FUEL, deck=DECK)
     m.fixed_fuel("taxi + take-off", fuel=60.0, duration_s=300.0)
     m.climb(CRUISE_ALT, mach=0.6)
     m.cruise(CRUISE_MACH, distance_m=radius - m.x, name="cruise out")
@@ -88,7 +96,7 @@ for radius_km in range(100, 1301, 100):
 
 df = pd.DataFrame(rows)
 (ROOT / "data").mkdir(exist_ok=True)
-df.to_csv(ROOT / "data" / "radius_endurance.csv", index=False)
+df.to_csv(ROOT / "data" / f"radius_endurance{SUFFIX}.csv", index=False)
 
 fig, ax = plt.subplots(figsize=(8, 5))
 ax.plot(df.radius_km, df.loiter_h, "o-", lw=2)
@@ -100,5 +108,5 @@ ax.set_xlim(left=0)
 ax.set_ylim(bottom=0)
 ax.grid(alpha=0.3)
 fig.tight_layout()
-fig.savefig(RESULTS / "radius_endurance.png", dpi=150)
-print(f"Saved {RESULTS / 'radius_endurance.png'}")
+fig.savefig(RESULTS / f"radius_endurance{SUFFIX}.png", dpi=150)
+print(f"Saved {RESULTS / f'radius_endurance{SUFFIX}.png'}")

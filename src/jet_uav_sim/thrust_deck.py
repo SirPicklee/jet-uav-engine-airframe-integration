@@ -39,9 +39,12 @@ def march_to(eng, altitude, mach, T4_from, T4_to, x, step=25.0):
         return None, x
     return p, x_try
 
-def generate(altitudes, machs, throttles, verbose=True):
-    """Run the cycle over the grid. Returns a DataFrame with one row per point."""
-    _, eng = make_engine()
+def generate(altitudes, machs, throttles, verbose=True, health=None):
+    """Run the cycle over the grid. Returns a DataFrame with one row per point.
+
+    health: turbofan-cycle Health for a deteriorated engine (None = new engine).
+    """
+    _, eng = make_engine(health)
     rows = []
     for alt in altitudes:
         x_max = None

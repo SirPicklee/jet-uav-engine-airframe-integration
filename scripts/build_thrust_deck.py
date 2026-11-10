@@ -19,7 +19,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from jet_uav_sim.engine import make_engine
+from jet_uav_sim.engine import WORN, make_engine
 from jet_uav_sim.thrust_deck import generate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,7 +28,10 @@ RESULTS = ROOT / "results"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--quick", action="store_true", help="coarse grid")
+parser.add_argument("--worn", action="store_true", help="deteriorated engine (engine.WORN)")
 args = parser.parse_args()
+SUFFIX = "_worn" if args.worn else ""
+HEALTH = WORN if args.worn else None
 
 if args.quick:
     altitudes = np.array([0.0, 6000.0, 12000.0])
@@ -46,12 +49,12 @@ n = len(altitudes) * len(machs) * len(throttles)
 print(f"Generating {n} points...")
 
 t0 = time.time()
-df = generate(altitudes, machs, throttles)
+df = generate(altitudes, machs, throttles, health=HEALTH)
 print(f"Done in {time.time() - t0:.0f} s, unconverged points: {(df.limiter == 'no_conv').sum()}")
 
 DATA.mkdir(exist_ok=True)
-df.to_csv(DATA / "thrust_deck.csv", index=False)
-print(f"Saved {DATA / 'thrust_deck.csv'}")
+df.to_csv(DATA / f"thrust_deck{SUFFIX}.csv", index=False)
+print(f"Saved {DATA / f'thrust_deck{SUFFIX}.csv'}")
 
 # Plots -----------------------------------------------------------------------
 RESULTS.mkdir(exist_ok=True)
@@ -67,7 +70,7 @@ ax.set_title("Max dry thrust lapse")
 ax.grid(alpha=0.3)
 ax.legend(title="Altitude")
 fig.tight_layout()
-fig.savefig(RESULTS / "thrust_deck_max_dry.png", dpi=150)
+fig.savefig(RESULTS / f"thrust_deck_max_dry{SUFFIX}.png", dpi=150)
 plt.close(fig)
 
 fig, ax = plt.subplots(figsize=(8, 5))
@@ -81,6 +84,6 @@ ax.set_title(f"Part-power TSFC at Mach {machs[len(machs) // 2]:.2f}")
 ax.grid(alpha=0.3)
 ax.legend(title="Altitude")
 fig.tight_layout()
-fig.savefig(RESULTS / "thrust_deck_tsfc.png", dpi=150)
+fig.savefig(RESULTS / f"thrust_deck_tsfc{SUFFIX}.png", dpi=150)
 plt.close(fig)
 print(f"Plots saved in {RESULTS}")
