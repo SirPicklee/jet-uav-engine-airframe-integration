@@ -94,16 +94,24 @@ class Mission:
             self._burn(self.deck.fuel_flow(h_mid, mach, 0.0) * dt)
             self._log(name, mach)
 
-    def cruise(self, mach, distance_m=None, duration_s=None, dt=60.0, name="cruise"):
-        """Level flight at the current altitude for a distance or a duration."""
+    def cruise(self, mach, distance_m=None, duration_s=None, fuel_stop=None, dt=60.0,
+               name="cruise"):
+        """Level flight at the current altitude.
+
+        Stops at whichever comes first: distance flown, duration, or total fuel used
+        reaching fuel_stop [kg].
+        """
         x_end = self.x + distance_m if distance_m is not None else np.inf
         t_end = self.t + duration_s if duration_s is not None else np.inf
-        while self.x < x_end - 1e-6 and self.t < t_end - 1e-6:
+        f_end = fuel_stop if fuel_stop is not None else np.inf
+        while (self.x < x_end - 1e-6 and self.t < t_end - 1e-6
+               and self.fuel_used < f_end - 1e-6):
             trim = trim_level(self.h, mach, self.mass, aero=self.aero, deck=self.deck)
             if not trim.converged:
                 raise RuntimeError(f"cannot hold level flight at {self.h:.0f} m, Mach {mach}")
             V = mach * float(isa(self.h)[3])
-            step = min(dt, (x_end - self.x) / V, t_end - self.t)
+            step = min(dt, (x_end - self.x) / V, t_end - self.t,
+                       (f_end - self.fuel_used) / trim.fuel_flow)
             self.t += step
             self.x += V * step
             self._burn(trim.fuel_flow * step)
