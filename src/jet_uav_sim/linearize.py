@@ -61,3 +61,36 @@ def modes(A):
     osc.sort(key=lambda m: m["wn"])
     real.sort(key=lambda m: abs(m["eigenvalue"]))
     return osc, real
+
+
+LAT_IDX = [1, 3, 5, 6]                    # v, p, r, phi in the 6-DoF state
+LAT_NAMES = ["v", "p", "r", "phi"]
+
+
+def linearize_lateral(model, state0, controls0, eps=1e-5):
+    """Lateral-directional A (4x4) and B (4x2: aileron, rudder) of the 6-DoF model.
+
+    The longitudinal states are held at the trim point (the usual decoupling).
+    controls0 = (da, de, dr, throttle_cmd) at trim.
+    """
+    da0, de0, dr0, thr0 = controls0
+
+    def f(xr, da, dr):
+        s = state0.copy()
+        s[LAT_IDX] = xr
+        return model.derivatives(s, da, de0, dr, thr0)[LAT_IDX]
+
+    x0 = state0[LAT_IDX]
+    n = len(x0)
+    A = np.zeros((n, n))
+    for j in range(n):
+        h = eps * max(1.0, abs(x0[j]))
+        dx = np.zeros(n)
+        dx[j] = h
+        A[:, j] = (f(x0 + dx, da0, dr0) - f(x0 - dx, da0, dr0)) / (2 * h)
+
+    h = 1e-5
+    B = np.zeros((n, 2))
+    B[:, 0] = (f(x0, da0 + h, dr0) - f(x0, da0 - h, dr0)) / (2 * h)
+    B[:, 1] = (f(x0, da0, dr0 + h) - f(x0, da0, dr0 - h)) / (2 * h)
+    return A, B

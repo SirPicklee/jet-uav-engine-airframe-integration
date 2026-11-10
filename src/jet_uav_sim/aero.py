@@ -92,3 +92,44 @@ class AeroModel:
         a0 = np.radians(self.alpha0_deg)
         return (self.cm0 + self.cm_alpha(mach) * (alpha - a0)
                 + self.cm_de * de + self.cm_q(mach) * q_hat)
+
+    
+
+@dataclass
+class LateralAero:
+    """Lateral-directional derivatives, per rad (rates nondimensionalized by b / 2V).
+
+    Representative values for a fighter-class swept-wing layout with a single
+    vertical tail (Nelson, Flight Stability and Automatic Control; Roskam,
+    Airplane Design Part VI), not estimates for a specific geometry.
+
+    Sign conventions: positive aileron rolls right wing down; positive rudder
+    (trailing edge left) yaws the nose left.
+    """
+    cy_beta: float = -0.75
+    cy_dr: float = 0.15
+    cl_beta: float = -0.08     # dihedral effect (swept wing), stabilizing when < 0
+    cl_p: float = -0.30        # roll damping
+    cl_r: float = 0.06
+    cl_da: float = 0.08
+    cl_dr: float = 0.015
+    cn_beta: float = 0.12      # weathercock stability, stabilizing when > 0
+    cn_p: float = -0.03
+    cn_r: float = -0.25        # yaw damping
+    cn_da: float = -0.005      # adverse yaw
+    cn_dr: float = -0.07
+
+    def c_side(self, beta, dr):
+        return self.cy_beta * beta + self.cy_dr * dr
+
+    def c_roll(self, beta, p_hat, r_hat, da, dr):
+        return (self.cl_beta * beta + self.cl_p * p_hat + self.cl_r * r_hat
+                + self.cl_da * da + self.cl_dr * dr)
+
+    def c_yaw(self, beta, p_hat, r_hat, da, dr):
+        return (self.cn_beta * beta + self.cn_p * p_hat + self.cn_r * r_hat
+                + self.cn_da * da + self.cn_dr * dr)
+
+    def spiral_stable(self):
+        """Classic spiral stability condition: Cl_beta Cn_r - Cn_beta Cl_r > 0."""
+        return self.cl_beta * self.cn_r - self.cn_beta * self.cl_r > 0
