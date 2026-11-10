@@ -109,3 +109,28 @@ class ThrustDeck:
     def fuel_flow(self, altitude, mach, throttle):
         """Fuel flow [kg/s]."""
         return float(self._fuel(self._clip(altitude, mach, throttle)))
+
+
+
+@dataclass
+class BlendedDeck:
+    """Engine partway between new (wear = 0) and the WORN case (wear = 1).
+
+    Thrust and fuel flow are blended linearly. For small health changes the
+    engine response is linear in the health parameters (the basis of gas path
+    exchange rates), so this stands in for a deck at intermediate wear.
+    Only valid inside both decks' ranges (the worn deck ends at 12 km).
+    """
+    new: ThrustDeck
+    worn: ThrustDeck
+    wear: float
+
+    def thrust(self, altitude, mach, throttle):
+        a = self.new.thrust(altitude, mach, throttle)
+        b = self.worn.thrust(altitude, mach, throttle)
+        return (1.0 - self.wear) * a + self.wear * b
+
+    def fuel_flow(self, altitude, mach, throttle):
+        a = self.new.fuel_flow(altitude, mach, throttle)
+        b = self.worn.fuel_flow(altitude, mach, throttle)
+        return (1.0 - self.wear) * a + self.wear * b

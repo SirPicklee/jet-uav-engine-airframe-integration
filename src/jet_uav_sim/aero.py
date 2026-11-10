@@ -31,7 +31,9 @@ class AeroModel:
     cm_de: float = -0.9           # per rad of elevator
     cl_de: float = 0.4            # per rad of elevator
     cmq_factor: float = -1.1      # Cmq = factor * CLa * (tail arm / MAC)^2, rough
+    cmq_factor: float = -1.1      # Cmq = factor * CLa * (tail arm / MAC)^2, rough
     eta: float = 0.95             # airfoil efficiency (DATCOM)
+    oswald_factor: float = 1.0    # scales the Raymer estimate (uncertainty studies)
 
     # --- lift ------------------------------------------------------------------
     def cl_alpha(self, mach):
@@ -61,7 +63,7 @@ class AeroModel:
 
     @property
     def k_induced(self):
-        return 1.0 / (np.pi * self.airframe.wing.aspect_ratio * self.oswald)
+        return 1.0 / (np.pi * self.airframe.wing.aspect_ratio * self.oswald * self.oswald_factor)
 
     def mach_dd(self, cl):
         """Drag-divergence Mach number (Korn equation, swept form)."""

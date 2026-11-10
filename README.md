@@ -90,6 +90,14 @@ A representative mid-life wear pattern (compressor fouling, opened turbine tip c
 - Where it is **fan-speed-limited** (altitude), it keeps its thrust by running hotter, which is why engines are rated on N1.
 - In the mission, the loss comes from **TSFC** (+~3.5 %), not thrust: **−38 km radius, ~10 min less on station at every radius**, up to −15 % of station time at 1000 km.
 
+### Uncertainty
+200-sample Monte Carlo on the maximum radius, with Oswald factor (Raymer × 0.85–1.00), CD0 (± 15 %), empty mass (σ = 3 %) and engine wear (new to mid-life) sampled independently. Engine wear in between is a linear blend of the new and worn decks, valid because the engine responds linearly to small health changes (the basis of gas path exchange rates).
+
+- **Max radius: 1231 km median, 1087–1381 km (90 %)**; the design-value answer (1258 km) is reached in only 42 % of samples.
+- **CD0 drives almost all of it** (Spearman ρ = −0.98; ±15 % CD0 swings the radius by 327 km). At 10 km / Mach 0.75 the aircraft flies at CL ≈ 0.18, half the best-L/D value, so ~80 % of the drag is parasite drag and the Oswald factor barely matters. The next engineering investment for this design is pinning down CD0 (CFD or wind tunnel).
+
+![Monte Carlo](docs/figures/monte_carlo.png)
+
 ## Validation
 
 | Check | Model | Reference | Difference |
@@ -102,7 +110,10 @@ A representative mid-life wear pattern (compressor fouling, opened turbine tip c
 | Loiter lost per 100 km of radius | 0.385 h | hand calc: 200 km ÷ 1.85 km/kg ÷ 285 kg/h = 0.38 h | +1 % |
 | Engine mode in the linear model | τ = 1.02 s | engine lag in the nonlinear model | exact |
 
+| Max radius, two methods | 1258 km (out-and-back, fuel to reserve) | 1260 km (loiter time extrapolated to zero) | −0.2 % |
+
 The Breguet difference is expected: Breguet freezes L/D and TSFC, the simulation re-trims every minute as the aircraft gets lighter.
+
 
 ## Limitations and next steps
 
@@ -122,7 +133,7 @@ cd jet-uav-engine-airframe-integration
 python -m venv .venv
 # Windows: .venv\Scripts\activate     Linux/macOS: source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                   # 29 tests
+pytest                                   # 30 tests
 ```
 
 Thrust decks are committed in `data/`; regenerating them takes ~15 min each:
@@ -135,7 +146,11 @@ python scripts/build_thrust_deck.py --worn   # deteriorated engine
 | Script | What it does |
 |---|---|
 | `plot_aero.py` | drag polars, transonic drag rise |
-| `plot_trim_map.py` | specific range and throttle over the envelope |
+| `plot_trim_map.py` | specific range and throttle over the 
+| `ceiling.py` | rate of climb, cruise/service/absolute ceilings |
+| `monte_carlo.py [-n N]` | uncertainty and sensitivity of the max radius |
+
+envelope |
 | `sim_elevator_doublet.py` | short period and phugoid in the time domain |
 | `modal_analysis.py` | linearization and eigenvalues |
 | `fit_engine_lag.py` | throttle slam with turbofan-cycle, first-order fit |

@@ -34,3 +34,13 @@ def test_throttle_reduces_thrust_and_fuel(deck):
 
 def test_inputs_are_clipped(deck):
     assert deck.thrust(20000.0, 2.0, 1.5) == deck.thrust(10000.0, 0.8, 1.0)
+
+
+
+def test_blended_deck_endpoints_and_midpoint(deck):
+    from jet_uav_sim.thrust_deck import BlendedDeck
+    other = ThrustDeck(deck.df.assign(thrust_N=deck.df.thrust_N * 0.9))
+    args = (10000.0, 0.8, 1.0)
+    assert BlendedDeck(deck, other, 0.0).thrust(*args) == deck.thrust(*args)
+    assert BlendedDeck(deck, other, 1.0).thrust(*args) == pytest.approx(other.thrust(*args))
+    assert BlendedDeck(deck, other, 0.5).thrust(*args) == pytest.approx(0.95 * deck.thrust(*args))
